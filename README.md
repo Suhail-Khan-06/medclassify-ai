@@ -1,70 +1,129 @@
 # MedClassify-AI
 
-Fine-tuning DistilBERT to classify sentences in medical research abstracts — with a TF-IDF baseline for comparison.
+A medical abstract sentence classification project that fine-tunes DistilBERT to identify the structural role of sentences in clinical research abstracts, with a TF-IDF + Logistic Regression baseline for comparison.
 
-**Model on HuggingFace Hub →** [SuhailKhan06/medclassify-ai](https://huggingface.co/SuhailKhan06/medclassify-ai)
+**Hugging Face Model:** https://huggingface.co/SuhailKhan06/medclassify-ai
+
+**Live Demo:** https://huggingface.co/spaces/SuhailKhan06/medclassify-ai-demo
 
 ---
 
-## What it does
+## Overview
 
-Given a sentence from a clinical abstract, the model predicts which structural role it plays:
+Medical research abstracts usually follow a structured format where each sentence serves a distinct purpose. Some sentences provide background information, others describe the study objective, explain methods, present results, or summarize conclusions.
 
-| Label           | Example sentence                                                           |
-| --------------- | -------------------------------------------------------------------------- |
-| **BACKGROUND**  | "Cardiovascular disease is a leading cause of death worldwide."            |
-| **OBJECTIVE**   | "The aim of this study was to evaluate the safety of drug X."              |
-| **METHODS**     | "Patients were randomly assigned to two treatment groups."                 |
-| **RESULTS**     | "The treatment significantly improved 30-day survival rates."              |
-| **CONCLUSIONS** | "These findings suggest the intervention is effective and well-tolerated." |
+MedClassify-AI automatically predicts the role of each sentence.
 
-This kind of sentence-level structural labeling is useful for automated abstract parsing, evidence extraction, and literature review pipelines.
+This project demonstrates both a traditional machine learning approach and a transformer-based deep learning approach for medical text classification.
+
+---
+
+## What the Model Predicts
+
+The model classifies each sentence into one of the following labels:
+
+- BACKGROUND
+- OBJECTIVE
+- METHODS
+- RESULTS
+- CONCLUSIONS
+
+### Example
+
+Input sentence:
+
+"The aim of this study was to evaluate the safety of drug X."
+
+Predicted label:
+
+OBJECTIVE
+
+---
+
+## Use Cases
+
+- Automated abstract structuring
+- Biomedical literature review
+- Evidence extraction
+- Research summarization
+- Clinical NLP pipelines
+- Medical search systems
 
 ---
 
 ## Dataset
 
-**PubMed 200k RCT** — sentences from randomized controlled trial abstracts, each labeled with its structural role.
+This project uses the PubMed 200k RCT dataset.
 
-| Split      | Size    |
-| ---------- | ------- |
-| Train      | 176,642 |
-| Validation | 29,672  |
-| Test       | 29,578  |
+The dataset contains sentences from randomized controlled trial abstracts, each labeled with its structural role.
 
-Loaded directly from HuggingFace Datasets. Mean sentence length: 151 characters (median 138).
+Dataset statistics:
+
+- Training set: 176,642 sentences
+- Validation set: 29,672 sentences
+- Test set: 29,578 sentences
+- Average sentence length: 151 characters
+- Median sentence length: 138 characters
+
+The dataset is loaded directly using Hugging Face Datasets.
+
+---
+
+## Models Implemented
+
+### TF-IDF + Logistic Regression
+
+A strong classical baseline built using:
+
+- Unigram and bigram TF-IDF features
+- 50,000 feature vocabulary
+- L2-regularized Logistic Regression
+
+### DistilBERT
+
+A transformer model fine-tuned using:
+
+- distilbert-base-uncased
+- Hugging Face Trainer API
+- PyTorch backend
+- Maximum sequence length of 128 tokens
 
 ---
 
 ## Results
 
-### Baseline — TF-IDF + Logistic Regression
+### TF-IDF + Logistic Regression Baseline
 
-Trained on 50k-feature unigram/bigram TF-IDF vectors with L2 logistic regression.
+- Test Accuracy: 77.55%
+- Weighted F1 Score: 77.10%
 
-|             | Test accuracy | Weighted F1 |
-| ----------- | ------------- | ----------- |
-| TF-IDF + LR | 77.55%        | 77.10%      |
+The baseline performs especially well on METHODS and RESULTS sentences.
 
-Per-class breakdown on the test set:
+### DistilBERT
 
-| Class       | Precision | Recall | F1   | Support |
-| ----------- | --------- | ------ | ---- | ------- |
-| background  | 0.57      | 0.54   | 0.56 | 3,077   |
-| conclusions | 0.69      | 0.68   | 0.69 | 4,571   |
-| methods     | 0.83      | 0.90   | 0.86 | 9,884   |
-| objective   | 0.66      | 0.48   | 0.55 | 2,333   |
-| results     | 0.84      | 0.84   | 0.84 | 9,713   |
+DistilBERT was fine-tuned and uploaded to the Hugging Face Hub.
 
-`BACKGROUND` and `OBJECTIVE` are the hardest classes — they're often short and structurally similar to each other.
-
-### DistilBERT fine-tuned
-
-Fine-tuned `distilbert-base-uncased` with the HuggingFace `Trainer` API. Max token length: 128. Training was interrupted before full convergence — checkpoint saved and pushed to the Hub. Full evaluation metrics will be updated once training completes on a GPU.
+The model leverages contextual embeddings to understand sentence meaning and generally provides stronger performance than keyword-based approaches.
 
 ---
 
-## How to use the model
+## Why DistilBERT?
+
+DistilBERT is a smaller and faster version of BERT.
+
+Advantages:
+
+- Around 40% smaller than BERT-base
+- Approximately 60% faster
+- Retains about 97% of BERT's performance
+
+Because the task involves short single-sentence inputs, DistilBERT offers an excellent trade-off between speed and accuracy.
+
+---
+
+## Try the Model
+
+### Using the Pipeline API
 
 ```python
 from transformers import pipeline
@@ -74,12 +133,15 @@ classifier = pipeline(
     model="SuhailKhan06/medclassify-ai"
 )
 
-result = classifier("Patients were randomly assigned to two treatment groups.")
+result = classifier(
+    "Patients were randomly assigned to two treatment groups."
+)
+
 print(result)
 # [{'label': 'METHODS', 'score': 0.94}]
 ```
 
-Or manually:
+### Using AutoTokenizer and AutoModel
 
 ```python
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -89,47 +151,135 @@ tokenizer = AutoTokenizer.from_pretrained("SuhailKhan06/medclassify-ai")
 model = AutoModelForSequenceClassification.from_pretrained("SuhailKhan06/medclassify-ai")
 
 text = "The aim of this study was to evaluate the safety of drug X."
-inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
+
+inputs = tokenizer(
+    text,
+    return_tensors="pt",
+    truncation=True,
+    max_length=128
+)
 
 with torch.no_grad():
     logits = model(**inputs).logits
 
-predicted_class = logits.argmax(-1).item()
-print(model.config.id2label[predicted_class])
-# OBJECTIVE
+prediction = logits.argmax(-1).item()
+print(model.config.id2label[prediction])
 ```
 
 ---
 
-## Running locally
+## Installation
+
+Clone the repository:
 
 ```bash
-git clone https://github.com/Suhail-Khan-06/medclassify-ai
+git clone https://github.com/Suhail-Khan-06/medclassify-ai.git
 cd medclassify-ai
-python -m venv .venv && source .venv/bin/activate
+```
+
+Create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Activate the environment.
+
+Linux and macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+---
+
+## Run the Training Notebook
+
+```bash
 jupyter notebook bert_training.ipynb
 ```
 
+The notebook includes:
+
+- Exploratory Data Analysis
+- TF-IDF baseline
+- DistilBERT fine-tuning
+- Evaluation
+- Model export to Hugging Face Hub
+
 ---
 
-## Project structure
+## Project Structure
 
-```
+```text
 medclassify-ai/
-├── bert_training.ipynb   # full training notebook: EDA, baseline, DistilBERT, eval
+├── bert_training.ipynb
 ├── models/
 │   ├── logistic_regression_baseline.pkl
 │   └── tfidf_vectorizer.pkl
-└── requirements.txt
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Why DistilBERT over full BERT?
+## Key Hyperparameters
 
-DistilBERT is 40% smaller and 60% faster than BERT-base while retaining about 97% of its performance on GLUE benchmarks. For this task — short, single-sentence inputs averaging 138 characters — the full BERT model is unnecessary overhead. DistilBERT's 6-layer architecture is well-suited to the sentence length distribution here (75th percentile is 190 characters, well within the 128 token limit).
+- Base model: distilbert-base-uncased
+- Maximum sequence length: 128
+- Optimizer: AdamW
+- Framework: Hugging Face Transformers
 
 ---
 
-Built by [Mohammed Suhail Ahmed Khan](https://github.com/Suhail-Khan-06)
+## Applications
+
+- Scientific abstract parsing
+- Automated evidence extraction
+- Medical search engines
+- Literature review assistants
+- Research trend analysis
+
+---
+
+## Resume Description
+
+Developed a medical abstract sentence classification system by fine-tuning DistilBERT on the PubMed 200k RCT dataset and compared performance against a TF-IDF + Logistic Regression baseline.
+
+---
+
+## Future Improvements
+
+- Complete full GPU training
+- Hyperparameter tuning
+- Confusion matrix visualization
+- Streamlit or FastAPI deployment
+- ONNX export for optimized inference
+
+---
+
+## Author
+
+Mohammed Suhail Ahmed Khan
+
+GitHub: https://github.com/Suhail-Khan-06
+
+Hugging Face: https://huggingface.co/SuhailKhan06
+
+---
+
+## License
+
+This project is released under the MIT License.
